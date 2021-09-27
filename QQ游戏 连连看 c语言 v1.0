@@ -1,0 +1,403 @@
+#include <stdio.h>
+#include <easyx.h>
+RECT rect1;
+IMAGE obj[11][19];
+void gameinit()//初始化的准备工作
+{
+	HWND qqhwnd;//定义接收窗口的变量
+	IMAGE image_(800, 600);//h=600,l=800的空图片
+	HDC qqhdc;//描述窗口图像
+	HDC imghdc;//描述图片图像
+	qqhwnd = FindWindowA(NULL, "QQ游戏 - 连连看角色版");
+	qqhdc = GetDC(qqhwnd);
+	imghdc = GetImageHDC(&image_);	
+	BitBlt(imghdc, 0, 0, 800, 600, qqhdc,0,0,SRCCOPY);
+	SetWorkingImage(&image_);
+	for (int i = 0; i < 11; i++)
+	{
+		for (int j = 0; j < 19; j++)
+		{
+			getimage(&obj[i][j], 15 + j * 31 + 10, 182 + i * 35 + 10, 10, 10);
+		}
+	}
+	SetForegroundWindow(qqhwnd);//把游戏窗口放在桌面最前
+	GetWindowRect(qqhwnd, &rect1);
+	Sleep(1000);
+
+}
+bool Isblank(IMAGE* pobj)//判断是不是空，找像素点是不是对应颜色就行 RGB 48 76 112
+{
+	SetWorkingImage(pobj);
+	int i, j;
+	for (i = 0; i < 10; i++)
+	{
+		for (j = 0; j < 10; j++)
+		{
+			
+			if (getpixel(i,j) != RGB(48, 76, 112))
+				return false;
+		}
+	} 
+	return true;
+}
+bool Issame(IMAGE* obj1, IMAGE* obj2)
+{
+	int i, j;
+	for (i = 0; i < 10; i++)
+	{
+		for (j = 0; j < 10; j++)
+		{
+			SetWorkingImage(obj1);
+			COLORREF pix1 = getpixel(i, j);
+			SetWorkingImage(obj2);
+			COLORREF pix2 = getpixel(i, j);
+			if (pix1!=pix2)
+				return false;
+		}
+	}
+	return true;
+}
+bool no_turn(int i, int j, int m, int n)
+{
+	int k = 0;
+	int maxl = i > m ? i : m;
+	int maxr = j > n ? j : n;
+	int minl = i < m ? i : m;
+	int minr = j < n ? j : n;
+	if (i == m)
+	{
+		for (int a = minr + 1; a < maxr; a++)
+		{
+			if (Isblank(&obj[i][a]))
+				continue;
+			else
+				k++;
+		}
+		if (k == 0)
+			return true;
+		k = 0;
+	}
+	if (j == n)
+	{
+		for (int a = minl + 1; a < maxl; a++)
+		{
+			if (Isblank(&obj[a][j]))
+				continue;
+			else
+				k++;
+		}
+		if (k == 0)
+			return true;
+	}
+	return false;
+}
+bool one_turn_1(int i, int j, int m, int n)
+{
+	int k = 0;
+	for (int a = j + 1; a <= n; a++)
+	{
+		if (Isblank(&obj[i][a]))
+			continue  ;
+		else
+		{
+			k++;
+			break;
+		}
+	}
+	for (int a = i + 1; a < m; a++)
+	{
+		if (Isblank(&obj[a][n]))
+			continue;
+		else
+		{
+			k++;
+			break;
+		}
+	}
+	if (k == 0)
+		return true;
+	k = 0;
+	for (int a = i + 1; a <= m; a++)
+	{
+		if (Isblank(&obj[a][j]))
+			continue;
+		else
+		{
+			k++;
+			break;
+		}
+	}
+	for (int a = j + 1; a < n; a++)
+	{
+		if (Isblank(&obj[m][a]))
+			continue;
+		else
+		{
+			k++;
+			break;
+		}
+	}
+	if (k == 0)
+		return true;
+	return false;
+}
+bool one_turn_2(int i, int j, int m, int n)
+{
+	int k = 0;
+	for (int a = j + 1; a <= n; a++)
+	{
+		if (Isblank(&obj[i][a]))
+			continue;
+		else
+			k++;
+	}
+	for (int a = i - 1; a > m; a--)
+	{
+		if (Isblank(&obj[a][n]))
+			continue;
+		else
+			k++;
+	}
+	if (k == 0)
+		return true;
+	k = 0;
+	for (int a = i - 1; a >= m; a--)
+	{
+		if (Isblank(&obj[a][j]))
+			continue;
+		else
+			k++;
+	}
+	for (int a = j + 1; a < n; a++)
+	{
+		if (Isblank(&obj[m][a]))
+			continue;
+		else
+			k++;
+	}
+	if (k == 0)
+		return true;
+	return false;
+}
+bool two_turn_1(int i, int j, int m, int n)
+{
+	for (int a = 0; a < i; a++)
+	{
+		if (no_turn(i, j, a, j)&&Isblank(&obj[a][j]))
+		{
+			if (one_turn_1(a, j, m, n))
+				return true;
+		}
+	}
+	for (int a = i + 1; a < m; a++)
+	{
+		if (one_turn_1(i, j, a, n) && Isblank(&obj[a][n]))
+		{
+			if (no_turn(a, n, m, n))
+				return true;
+		}
+	}
+	for (int a = m + 1; a < 11; a++)
+	{
+		if (one_turn_1(i, j, a, n) && Isblank(&obj[a][n]))
+		{
+			if (no_turn(a, n, m, n))
+				return true;
+		}
+	}
+	return false;
+}
+bool two_turn_2(int i, int j, int m, int n)
+{
+	for (int a = 0; a < j; a++)
+	{
+		if (no_turn(i, j, i, a) && Isblank(&obj[i][a]))
+		{
+			if (one_turn_1(i, a, m, n))
+				return true;
+		}
+	}
+	for (int a = j+1; a < n; a++)
+	{
+		if (no_turn(i, j, i, a) && Isblank(&obj[i][a]))
+		{
+			if (one_turn_1(i, a, m, n))
+				return true;
+		}
+	}
+	for (int a = n+1; a < 19; a++)
+	{
+		if (one_turn_1(i, j, m, a) && Isblank(&obj[m][a]))
+		{
+			if (no_turn(m, n, m, a))
+				return true;
+		}
+	}
+	return false;
+}
+bool two_turn_3(int i, int j, int m, int n)
+{
+	for (int a = 0; a < j; a++)
+	{
+		if (no_turn(i, j, i, a) && Isblank(&obj[i][a]))
+		{
+			if (one_turn_2(i, a, m, n))
+				return true;
+		}
+	}
+	for (int a = j + 1; a < n; a++)
+	{
+		if (no_turn(i, j, i, a) && Isblank(&obj[i][a]))
+		{
+			if (one_turn_2(i, a, m, n))
+				return true;
+		}
+	}
+	for (int a = n + 1; a < 19; a++)
+	{
+		if (one_turn_2(i, j, m, a) && Isblank(&obj[m][a]))
+		{
+			if (no_turn(m, n, m, a))
+				return true;
+		}
+	}
+	return false;
+}
+bool two_turn_4(int i, int j, int m, int n)
+{
+	for (int a = 0; a < m; a++)
+	{
+		if (no_turn(i, j, a, j) && Isblank(&obj[a][j]))
+		{
+			if (one_turn_1(a, j, m, n))
+				return true;
+		}
+	}
+	for (int a = m + 1; a < i; a++)
+	{
+		if (one_turn_2(i, j, a, n) && Isblank(&obj[a][n]))
+		{
+			if (no_turn(a, n, m, n))
+				return true;
+		}
+	}
+	for (int a = i + 1; a < 11; a++)
+	{
+		if (one_turn_1(i, j, a, n) && Isblank(&obj[a][n]))
+		{
+			if (no_turn(a, n, m, n))
+				return true;
+		}
+	}
+	return false;
+}
+bool Isconnet(int i,int j ,int m,int n)
+{ 
+	int k = 0;
+	if (i == m )
+	{
+		if (no_turn(i, j, m, n))
+			return true;
+		if (j < n? two_turn_1(i, j, m, n): two_turn_1(m, n, i, j))
+				return true;
+	}
+	if (j == n)
+	{
+		if (no_turn(i, j, m, n))
+			return true;
+		if (i < m ? two_turn_2(i, j, m, n) : two_turn_2(m, n, i, j))
+			return true;
+	}
+	if (i != m && j != n)
+	{
+		//左上右下对角_正对角
+		if (i < m && j < n)
+		{
+			if (one_turn_1(i, j, m, n))
+				return true;
+			if (two_turn_1(i, j, m, n))
+				return true;
+			if (two_turn_2(i, j, m, n))
+				return true;
+		}
+		if (i > m && j > n)
+		{
+			if (one_turn_1(m, n, i, j))
+				return true;
+			if (two_turn_1(m, n, i, j))
+				return true;
+			if (two_turn_2(m, n, i, j))
+				return true;
+		}
+		//左下右上对角_副对角
+		if (i > m && j < n)
+		{
+			if (one_turn_2(i, j, m, n))
+				return true;
+			if (two_turn_3(i, j, m, n))
+				return true;
+			if (two_turn_4(i, j, m, n))
+				return true;
+		}
+		if (i < m && j > n)
+		{
+			if (one_turn_2(m, n, i, j))
+				return true;
+			if (two_turn_3(m, n, i, j))
+				return true;
+			if (two_turn_4(m, n, i, j))
+				return true;
+		}
+	}
+	return false;
+}
+void remove(IMAGE* obj1, IMAGE* obj2)
+{
+	SetWorkingImage(obj1);
+	setbkcolor(RGB(48, 76, 112));
+	cleardevice();
+	SetWorkingImage(obj2);
+	setbkcolor(RGB(48, 76, 112));
+	cleardevice();
+}
+int main()
+{
+	int i, j, n, m;
+	for (int c = 0; c < 3; c++)
+	{
+		gameinit();
+		for (i = 0; i < 11; i++)
+		{
+			for (j = 0; j < 19; j++)
+			{
+				if (Isblank(&obj[i][j]))//判断当前小图格是否为空 为空就判断下一个
+					continue;
+				for (m = 0; m < 11; m++)
+				{
+					for (n = 0; n < 19; n++)
+					{
+						if (Isblank(&obj[m][n]))
+							continue;
+						if (m == i && n == j)
+							continue;
+						if (Issame(&obj[i][j], &obj[m][n]))
+						{
+							if (Isconnet(i, j, m, n))
+							{
+								SetCursorPos((rect1.left + 15 + j * 31 + 10), (rect1.top + 182 + 35 * i + 10));
+								mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+								printf("%d %d ", i, j);
+								SetCursorPos((rect1.left + 15 + n * 31 + 10), (rect1.top + 182 + 35 * m + 10));
+								mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+								printf("%d %d \n", m, n);
+								remove(&obj[i][j], &obj[m][n]);
+							}
+						}
+					}
+				}
+			}
+		}
+		Sleep(2000);
+	}
+	return 0;
+}
